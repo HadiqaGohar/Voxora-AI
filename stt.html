@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Speech-to-Text</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Voxora AI</div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html">Text-to-Speech</a>
+            <a href="stt.html" class="active">Speech-to-Text</a>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html">Text-to-Speech</a>
+        <a href="stt.html" class="active">Speech-to-Text</a>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-mic"></i> Speech-to-Text</h1>
+            <p>Convert your voice into text, then hear it in AI voice</p>
+        </section>
+
+        <section class="tool-section">
+            <div class="tool-card">
+                <div class="record-area">
+                    <button id="record-btn" class="btn-record" onclick="toggleRecording()">
+                        <span class="record-icon" id="record-icon"><i class="lucide-mic"></i></span>
+                        <span id="record-label">Start Recording</span>
+                    </button>
+                    <div id="recording-status" class="recording-status"></div>
+                </div>
+
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="stt-lang">Language</label>
+                        <select id="stt-lang">
+                            <option value="en-US">English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="hi-IN">Hindi</option>
+                            <option value="ur-PK">Urdu</option>
+                            <option value="es-ES">Spanish</option>
+                            <option value="fr-FR">French</option>
+                            <option value="de-DE">German</option>
+                            <option value="pt-BR">Portuguese</option>
+                            <option value="ja-JP">Japanese</option>
+                            <option value="ko-KR">Korean</option>
+                            <option value="zh-CN">Chinese</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="output-area">
+                    <label for="stt-output">Transcribed Text</label>
+                    <textarea id="stt-output" rows="6" placeholder="Transcribed text will appear here..."></textarea>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="copyText()"><i class="lucide-copy"></i> Copy</button>
+                    <button class="btn btn-secondary" onclick="clearText()"><i class="lucide-trash-2"></i> Clear</button>
+                    <button class="btn btn-secondary" onclick="downloadText()"><i class="lucide-download"></i> Download Text</button>
+                    <button class="btn btn-primary" id="generate-ai-btn" onclick="generateAIVoice()" disabled><i class="lucide-volume-2"></i> Generate AI Voice</button>
+                    <button class="btn btn-secondary" id="download-ai-btn" onclick="downloadAIVoice()" disabled><i class="lucide-download"></i> Download AI Voice</button>
+                    <button class="btn btn-secondary" id="download-audio-btn" onclick="downloadRecording()" disabled><i class="lucide-download"></i> Download My Recording</button>
+                </div>
+
+                <!-- AI Voice Preview -->
+                <div id="ai-preview" style="display:none; margin-top: 20px;">
+                    <label>AI Voice Preview</label>
+                    <div class="ai-audio-card">
+                        <audio id="ai-audio-player" controls></audio>
+                        <div class="ai-audio-info">
+                            <span id="ai-latency"></span>
+                            <span id="ai-voice-name"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="stt-status" class="status"></div>
+            </div>
+        </section>
+
+        <section class="tool-section">
+            <h2>Upload Audio File</h2>
+            <div class="tool-card">
+                <div class="upload-area" id="upload-area">
+                    <p>Drag & drop an audio file here or</p>
+                    <label for="audio-upload" class="btn btn-primary"><i class="lucide-upload"></i> Browse Files</label>
+                    <input type="file" id="audio-upload" accept="audio/*" hidden onchange="handleFileUpload(event)">
+                    <p class="upload-hint">Supports MP3, WAV, OGG, WEBM</p>
+                </div>
+                <div id="upload-preview" style="display:none;">
+                    <audio id="audio-player" controls></audio>
+                    <div class="btn-group" style="margin-top: 10px;">
+                        <button class="btn btn-primary" onclick="transcribeAudio()"><i class="lucide-file-text"></i> Transcribe & Generate AI Voice</button>
+                        <button class="btn btn-secondary" onclick="downloadUploadedAudio()"><i class="lucide-download"></i> Download Audio</button>
+                    </div>
+                </div>
+                <div id="upload-status" class="status"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        var recognition = null;
+        var isRecording = false;
+        var finalTranscript = '';
+        var mediaRecorder = null;
+        var audioChunks = [];
+        var recordedBlob = null;
+        var micStream = null;
+        var ttsAudio = null;
+        var lastTTSBlob = null;
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = function(event) {
+                var interim = '';
+                for (var i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+                document.getElementById('stt-output').value = finalTranscript + interim;
+                updateAIButtons();
+            };
+
+            recognition.onerror = function(event) {
+                console.warn('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed') {
+                    showStatus('stt-status', 'Microphone access denied.', 'error');
+                } else {
+                    showStatus('stt-status', 'Error: ' + event.error, 'error');
+                }
+                stopRecordingUI();
+                isRecording = false;
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    try { recognition.start(); } catch (e) {}
+                }
+            };
+        }
+
+        function toggleRecording() {
+            if (!SpeechRecognition) {
+                showStatus('stt-status', 'Speech Recognition not supported. Use Chrome or Edge.', 'error');
+                return;
+            }
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+
+        function startRecording() {
+            var lang = document.getElementById('stt-lang').value;
+            recognition.lang = lang;
+            finalTranscript = document.getElementById('stt-output').value;
+
+            try {
+                recognition.start();
+                isRecording = true;
+                startRecordingUI();
+                showStatus('stt-status', 'Recording... Speak now!', 'info');
+                startAudioRecording();
+            } catch (e) {
+                showStatus('stt-status', 'Failed: ' + e.message, 'error');
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            try { recognition.stop(); } catch (e) {}
+            stopRecordingUI();
+            stopAudioRecording();
+            
+            var text = document.getElementById('stt-output').value.trim();
+            if (text) {
+                showStatus('stt-status', 'Recording stopped. Generating AI voice...', 'success');
+                generateAIVoice();
+            } else {
+                showStatus('stt-status', 'Recording stopped.', 'success');
+            }
+        }
+
+        function startRecordingUI() {
+            document.getElementById('record-icon').innerHTML = '<i class="lucide-square"></i>';
+            document.getElementById('record-label').textContent = 'Stop Recording';
+            document.getElementById('record-btn').classList.add('recording');
+            document.getElementById('recording-status').textContent = '\u25CF REC';
+            document.getElementById('recording-status').classList.add('blink');
+        }
+
+        function stopRecordingUI() {
+            document.getElementById('record-icon').innerHTML = '<i class="lucide-mic"></i>';
+            document.getElementById('record-label').textContent = 'Start Recording';
+            document.getElementById('record-btn').classList.remove('recording');
+            document.getElementById('recording-status').textContent = '';
+            document.getElementById('recording-status').classList.remove('blink');
+        }
+
+        function startAudioRecording() {
+            audioChunks = [];
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        micStream = stream;
+                        try {
+                            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                        } catch (e) {
+                            mediaRecorder = new MediaRecorder(stream);
+                        }
+                        mediaRecorder.ondataavailable = function(e) {
+                            if (e.data.size > 0) audioChunks.push(e.data);
+                        };
+                        mediaRecorder.onstop = function() {
+                            recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            document.getElementById('download-audio-btn').disabled = false;
+                        };
+                        mediaRecorder.start(100);
+                    })
+                    .catch(function(err) {
+                        showStatus('stt-status', 'Mic not available. STT still works!', 'info');
+                    });
+            }
+        }
+
+        function stopAudioRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            if (micStream) {
+                micStream.getTracks().forEach(function(track) { track.stop(); });
+                micStream = null;
+            }
+        }
+
+        function downloadRecording() {
+            if (!recordedBlob) return;
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(recordedBlob);
+            a.download = 'voxora-recording-' + Date.now() + '.webm';
+            a.click();
+        }
+
+        function copyText() {
+            var text = document.getElementById('stt-output').value;
+            if (!text.trim()) return;
+            navigator.clipboard.writeText(text).then(function() {
+                showStatus('stt-status', 'Copied!', 'success');
+            });
+        }
+
+        function clearText() {
+            document.getElementById('stt-output').value = '';
+            finalTranscript = '';
+            recordedBlob = null;
+            audioChunks = [];
+            lastTTSBlob = null;
+            document.getElementById('download-audio-btn').disabled = true;
+            document.getElementById('generate-ai-btn').disabled = true;
+            document.getElementById('download-ai-btn').disabled = true;
+            document.getElementById('ai-preview').style.display = 'none';
+            showStatus('stt-status', 'Cleared.', 'info');
+        }
+
+        function downloadText() {
+            var text = document.getElementById('stt-output').value;
+            if (!text.trim()) return;
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+            a.download = 'voxora-transcription-' + Date.now() + '.txt';
+            a.click();
+        }
+
+        // Upload Area
+        var uploadArea = document.getElementById('upload-area');
+        uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            var file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) processAudioFile(file);
+        });
+
+        function handleFileUpload(event) {
+            var file = event.target.files[0];
+            if (file) processAudioFile(file);
+        }
+
+        function processAudioFile(file) {
+            var url = URL.createObjectURL(file);
+            document.getElementById('audio-player').src = url;
+            document.getElementById('upload-area').style.display = 'none';
+            document.getElementById('upload-preview').style.display = 'block';
+            showStatus('upload-status', 'Audio loaded. Click "Transcribe & Generate AI Voice".', 'info');
+        }
+
+        function transcribeAudio() {
+            var audioPlayer = document.getElementById('audio-player');
+            if (!audioPlayer.src) {
+                showStatus('upload-status', 'No audio loaded.', 'error');
+                return;
+            }
+
+            showStatus('upload-status', 'Transcribing...', 'info');
+
+            var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                showStatus('upload-status', 'Speech Recognition not supported.', 'error');
+                return;
+            }
+
+            var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            var source = audioContext.createMediaElementSource(audioPlayer);
+            source.connect(audioContext.destination);
+
+            var fileRecognition = new SpeechRecognition();
+            fileRecognition.lang = document.getElementById('stt-lang').value;
+            fileRecognition.continuous = true;
+            fileRecognition.interimResults = true;
+
+            var fileTranscript = '';
+
+            fileRecognition.onresult = function(event) {
+                for (var i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        fileTranscript += event.results[i][0].transcript + ' ';
+                    }
+                }
+                document.getElementById('stt-output').value = fileTranscript;
+                updateAIButtons();
+            };
+
+            fileRecognition.onend = function() {
+                showStatus('upload-status', 'Transcription done! Generating AI voice...', 'success');
+                audioContext.close();
+                if (fileTranscript.trim()) {
+                    generateAIVoice();
+                }
+            };
+
+            fileRecognition.onerror = function(event) {
+                showStatus('upload-status', 'Error: ' + event.error, 'error');
+                audioContext.close();
+            };
+
+            fileRecognition.start();
+            audioPlayer.play();
+        }
+
+        function downloadUploadedAudio() {
+            var audioPlayer = document.getElementById('audio-player');
+            if (audioPlayer.src) {
+                var a = document.createElement('a');
+                a.href = audioPlayer.src;
+                a.download = 'voxora-audio-' + Date.now() + '.webm';
+                a.click();
+            }
+        }
+
+        function showStatus(id, msg, type) {
+            var el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+
+        // Edge TTS Functions
+        function updateAIButtons() {
+            var text = document.getElementById('stt-output').value.trim();
+            document.getElementById('generate-ai-btn').disabled = text.length === 0;
+            document.getElementById('download-ai-btn').disabled = text.length === 0;
+        }
+
+        document.getElementById('stt-output').addEventListener('input', updateAIButtons);
+
+        async function generateAIVoice() {
+            var text = document.getElementById('stt-output').value.trim();
+            if (!text) {
+                showStatus('stt-status', 'No text to convert.', 'error');
+                return;
+            }
+
+            showStatus('stt-status', 'Generating AI voice...', 'info');
+            document.getElementById('generate-ai-btn').disabled = true;
+
+            var lang = document.getElementById('stt-lang').value;
+            var voice = lang === 'ur-PK' ? 'ur-PK-UzmaNeural' : 
+                        lang === 'hi-IN' ? 'hi-IN-SwaraNeural' : 'en-US-AriaNeural';
+
+            try {
+                var start = performance.now();
+                var response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, voice: voice })
+                });
+
+                if (!response.ok) throw new Error('TTS API not available');
+
+                var blob = await response.blob();
+                var latency = Math.round(performance.now() - start);
+                lastTTSBlob = blob;
+                var url = URL.createObjectURL(blob);
+
+                if (ttsAudio) { ttsAudio.pause(); }
+
+                ttsAudio = new Audio(url);
+                document.getElementById('ai-audio-player').src = url;
+                document.getElementById('ai-latency').textContent = 'Generated in ' + latency + 'ms';
+                document.getElementById('ai-voice-name').textContent = voice;
+                document.getElementById('ai-preview').style.display = 'block';
+                document.getElementById('ai-audio-player').play();
+
+                showStatus('stt-status', 'AI voice generated!', 'success');
+                document.getElementById('generate-ai-btn').disabled = false;
+                document.getElementById('download-ai-btn').disabled = false;
+            } catch (err) {
+                showStatus('stt-status', 'TTS API not available. Deploy backend first.', 'error');
+                document.getElementById('generate-ai-btn').disabled = false;
+            }
+        }
+
+        async function downloadAIVoice() {
+            if (!lastTTSBlob) {
+                showStatus('stt-status', 'Generate AI voice first.', 'error');
+                return;
+            }
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(lastTTSBlob);
+            a.download = 'voxora-ai-voice-' + Date.now() + '.mp3';
+            a.click();
+            showStatus('stt-status', 'Downloaded!', 'success');
+        }
+    </script>
+</body>
+</html>

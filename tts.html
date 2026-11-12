@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Text-to-Speech</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Voxora AI</div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html" class="active">Text-to-Speech</a>
+            <a href="stt.html">Speech-to-Text</a>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html" class="active">Text-to-Speech</a>
+        <a href="stt.html">Speech-to-Text</a>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-volume-2"></i> Text-to-Speech</h1>
+            <p>Type text, generate AI voice, listen & download</p>
+        </section>
+
+        <section class="tool-section">
+            <div class="tool-card">
+                <label for="tts-text">Enter Text</label>
+                <textarea id="tts-text" rows="5" placeholder="Type or paste text to convert to speech..."></textarea>
+
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="voice-select">Voice</label>
+                        <select id="voice-select">
+                            <option value="en-US-AriaNeural">Aria (US English - Female)</option>
+                            <option value="en-US-GuyNeural">Guy (US English - Male)</option>
+                            <option value="en-GB-SoniaNeural">Sonia (UK English - Female)</option>
+                            <option value="hi-IN-SwaraNeural">Swara (Hindi - Female)</option>
+                            <option value="ur-PK-UzmaNeural">Uzma (Urdu - Female)</option>
+                            <option value="es-ES-ElviraNeural">Elvira (Spanish - Female)</option>
+                            <option value="fr-FR-DeniseNeural">Denise (French - Female)</option>
+                            <option value="de-DE-KatjaNeural">Katja (German - Female)</option>
+                            <option value="ja-JP-NanamiNeural">Nanami (Japanese - Female)</option>
+                            <option value="ko-KR-SunHiNeural">SunHi (Korean - Female)</option>
+                            <option value="zh-CN-XiaoxiaoNeural">Xiaoxiao (Chinese - Female)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="generate-btn" class="btn btn-primary" onclick="generateSpeech()"><i class="lucide-play"></i> Generate Speech</button>
+                </div>
+
+                <!-- Audio Preview Card -->
+                <div id="audio-preview" style="display:none; margin-top: 20px;">
+                    <label>Audio Preview</label>
+                    <div class="ai-audio-card">
+                        <audio id="tts-audio-player" controls></audio>
+                        <div class="ai-audio-info">
+                            <span id="tts-latency"></span>
+                            <span id="tts-voice-name"></span>
+                        </div>
+                        <div class="btn-group" style="margin-top: 10px;">
+                            <button class="btn btn-secondary" onclick="downloadTTS()"><i class="lucide-download"></i> Download MP3</button>
+                            <button class="btn btn-secondary" onclick="copyLink()"><i class="lucide-link"></i> Copy Link</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="status" class="status"></div>
+            </div>
+        </section>
+
+        <section class="tool-section">
+            <h2>Sample Texts</h2>
+            <div class="sample-grid">
+                <button class="sample-btn" onclick="loadSample('Welcome to Voxora AI, your intelligent voice assistant platform. Convert text to speech and speech to text with ease.')"><i class="lucide-message-circle"></i> Welcome</button>
+                <button class="sample-btn" onclick="loadSample('The quick brown fox jumps over the lazy dog.')"><i class="lucide-file-text"></i> Test</button>
+                <button class="sample-btn" onclick="loadSample('Artificial intelligence is transforming how we interact with technology.')"><i class="lucide-brain"></i> AI</button>
+                <button class="sample-btn" onclick="loadSample('Namaste! Aapka swagat hai Voxora AI mein.')"><i class="lucide-globe"></i> Hindi</button>
+                <button class="sample-btn" onclick="loadSample('Assalamu Alaikum! Voxora AI mein khush amdeed.')"><i class="lucide-globe"></i> Urdu</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Powered by Edge TTS • No API keys required</p>
+    </footer>
+
+    <script>
+        var ttsAudio = null;
+        var lastTTSBlob = null;
+        var lastTTSUrl = null;
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        async function generateSpeech() {
+            var text = document.getElementById('tts-text').value.trim();
+            if (!text) {
+                showStatus('Please enter some text.', 'error');
+                return;
+            }
+
+            showStatus('Generating AI voice...', 'info');
+            document.getElementById('generate-btn').disabled = true;
+
+            var voice = document.getElementById('voice-select').value;
+
+            try {
+                var start = performance.now();
+                var response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, voice: voice })
+                });
+
+                if (!response.ok) throw new Error('TTS failed');
+
+                var blob = await response.blob();
+                var latency = Math.round(performance.now() - start);
+                lastTTSBlob = blob;
+
+                if (lastTTSUrl) URL.revokeObjectURL(lastTTSUrl);
+                lastTTSUrl = URL.createObjectURL(blob);
+
+                if (ttsAudio) { ttsAudio.pause(); }
+
+                ttsAudio = new Audio(lastTTSUrl);
+                document.getElementById('tts-audio-player').src = lastTTSUrl;
+                document.getElementById('tts-latency').textContent = 'Generated in ' + latency + 'ms';
+                document.getElementById('tts-voice-name').textContent = voice;
+                document.getElementById('audio-preview').style.display = 'block';
+                document.getElementById('tts-audio-player').play();
+
+                showStatus('Audio ready! Generated in ' + latency + 'ms', 'success');
+                document.getElementById('generate-btn').disabled = false;
+            } catch (err) {
+                showStatus('TTS API not available. Deploy backend first.', 'error');
+                document.getElementById('generate-btn').disabled = false;
+            }
+        }
+
+        function downloadTTS() {
+            if (!lastTTSBlob) {
+                showStatus('Generate voice first!', 'error');
+                return;
+            }
+            var a = document.createElement('a');
+            a.href = lastTTSUrl;
+            a.download = 'voxora-tts-' + Date.now() + '.mp3';
+            a.click();
+            showStatus('Downloaded!', 'success');
+        }
+
+        function copyLink() {
+            if (!lastTTSUrl) return;
+            navigator.clipboard.writeText(window.location.origin + '/api/tts?text=' + encodeURIComponent(document.getElementById('tts-text').value) + '&voice=' + document.getElementById('voice-select').value).then(function() {
+                showStatus('Link copied!', 'success');
+            });
+        }
+
+        function loadSample(text) {
+            document.getElementById('tts-text').value = text;
+        }
+
+        function showStatus(msg, type) {
+            var el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+    </script>
+</body>
+</html>

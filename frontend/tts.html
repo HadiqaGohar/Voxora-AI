@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Text-to-Speech</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="index.html">Voxora AI</a></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html" class="active">TTS</a>
+            <a href="stt.html">STT</a>
+            <a href="chat.html">Voice Chat</a>
+            <a href="analytics.html">Analytics</a>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+            </button>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html" class="active">TTS</a>
+        <a href="stt.html">STT</a>
+        <a href="chat.html">Voice Chat</a>
+        <a href="analytics.html">Analytics</a>
+        <div class="mobile-nav-footer">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-volume-2"></i> Text-to-Speech</h1>
+            <p>400+ voices via Edge TTS — multilingual neural speech</p>
+        </section>
+
+        <section class="tool-section">
+            <div class="tool-card">
+                <label for="tts-text">Enter Text</label>
+                <textarea id="tts-text" rows="5" placeholder="Type or paste text here..."></textarea>
+
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="voice-filter">Filter by Language</label>
+                        <select id="voice-filter" onchange="filterVoices()">
+                            <option value="">All Languages</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="voice-select">Voice</label>
+                        <select id="voice-select"></select>
+                    </div>
+                </div>
+
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="rate-slider">Speed: <span id="rate-value">1.0</span>x</label>
+                        <input type="range" id="rate-slider" min="0.5" max="2.0" step="0.1" value="1.0">
+                    </div>
+                    <div class="control-group">
+                        <label for="pitch-slider">Pitch: <span id="pitch-value">+0</span>Hz</label>
+                        <input type="range" id="pitch-slider" min="-50" max="50" step="5" value="0">
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="speak-btn" class="btn btn-primary" onclick="speak()"><i class="lucide-play"></i> Speak</button>
+                    <button id="stop-btn" class="btn btn-danger" onclick="stopSpeaking()" disabled><i class="lucide-square"></i> Stop</button>
+                    <button id="download-btn" class="btn btn-secondary" onclick="downloadAudio()" disabled><i class="lucide-download"></i> Download</button>
+                </div>
+
+                <div class="audio-player-wrap" id="audio-player-wrap" style="display:none;">
+                    <audio id="tts-audio" controls></audio>
+                </div>
+
+                <div id="tts-status" class="status"></div>
+                <div id="feedback-area" class="feedback-area" style="display:none;">
+                    <span>Was this helpful?</span>
+                    <button class="feedback-btn" onclick="submitFeedback(1)"><i class="lucide-thumbs-up"></i></button>
+                    <button class="feedback-btn" onclick="submitFeedback(-1)"><i class="lucide-thumbs-down"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tool-section">
+            <h2>Quick Samples</h2>
+            <div class="sample-grid">
+                <button class="sample-btn" onclick="loadSample('Welcome to Voxora AI, your intelligent voice assistant with 400+ neural voices.')"><i class="lucide-message-circle"></i> Welcome</button>
+                <button class="sample-btn" onclick="loadSample('The quick brown fox jumps over the lazy dog.')"><i class="lucide-file-text"></i> Test</button>
+                <button class="sample-btn" onclick="loadSample('Artificial intelligence is transforming how we interact with technology.')"><i class="lucide-brain"></i> AI</button>
+                <button class="sample-btn" onclick="loadSample('Namaste! Aapka swagat hai Voxora AI mein.')"><i class="lucide-globe"></i> Hindi</button>
+                <button class="sample-btn" onclick="loadSample('Assalamu Alaikum! Voxora AI mein khush amdeed.')"><i class="lucide-globe"></i> Urdu</button>
+                <button class="sample-btn" onclick="loadSample('Bonjour! Bienvenue sur Voxora AI, votre assistant vocal intelligent.')"><i class="lucide-globe"></i> French</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        const API = '/api';
+        let allVoices = [];
+        let currentInteractionId = null;
+        let sessionId = 'sess_' + Date.now();
+        let currentAudioUrl = null;
+
+        function getTheme() { return localStorage.getItem('voxora-theme') || 'dark'; }
+        function applyTheme(theme) { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('voxora-theme', theme); }
+        function toggleTheme() { applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+        applyTheme(getTheme());
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        async function loadVoices() {
+            try {
+                const resp = await fetch(API + '/languages');
+                const data = await resp.json();
+
+                const langFilter = document.getElementById('voice-filter');
+                data.languages.sort((a, b) => b.voice_count - a.voice_count).forEach(l => {
+                    const opt = document.createElement('option');
+                    opt.value = l.code;
+                    opt.textContent = l.name + ' (' + l.voice_count + ' voices)';
+                    langFilter.appendChild(opt);
+                });
+
+                const voiceResp = await fetch(API + '/voices');
+                const voiceData = await voiceResp.json();
+                allVoices = voiceData.voices;
+                populateVoices('');
+            } catch(e) {
+                console.error('Failed to load voices:', e);
+                showStatus('tts-status', 'Failed to load voices. Backend may be starting...', 'error');
+            }
+        }
+
+        function filterVoices() {
+            const lang = document.getElementById('voice-filter').value;
+            populateVoices(lang);
+        }
+
+        function populateVoices(langFilter) {
+            const select = document.getElementById('voice-select');
+            select.innerHTML = '';
+            let filtered = allVoices;
+            if (langFilter) {
+                filtered = allVoices.filter(v => v.Locale.startsWith(langFilter));
+            }
+            filtered.sort((a, b) => a.Locale.localeCompare(b.Locale)).forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.ShortName;
+                opt.textContent = v.DisplayName + ' (' + v.Gender + ') — ' + v.Locale;
+                select.appendChild(opt);
+            });
+        }
+
+        document.getElementById('rate-slider').addEventListener('input', function() {
+            document.getElementById('rate-value').textContent = this.value;
+        });
+        document.getElementById('pitch-slider').addEventListener('input', function() {
+            document.getElementById('pitch-value').textContent = (this.value >= 0 ? '+' : '') + this.value;
+        });
+
+        async function speak() {
+            const text = document.getElementById('tts-text').value.trim();
+            if (!text) { showStatus('tts-status', 'Enter some text.', 'error'); return; }
+
+            const voice = document.getElementById('voice-select').value;
+            const rate = document.getElementById('rate-slider').value;
+            const pitch = document.getElementById('pitch-slider').value;
+
+            const ratePct = Math.round((rate - 1) * 100);
+            const rateStr = (ratePct >= 0 ? '+' : '') + ratePct + '%';
+            const pitchStr = (pitch >= 0 ? '+' : '') + pitch + 'Hz';
+
+            document.getElementById('speak-btn').disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+            showStatus('tts-status', 'Generating audio...', 'info');
+
+            try {
+                const start = performance.now();
+                const resp = await fetch(API + '/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice, rate: rateStr, pitch: pitchStr, session_id: sessionId })
+                });
+
+                const latency = resp.headers.get('X-Latency-Ms');
+                currentInteractionId = null;
+
+                const blob = await resp.blob();
+                if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+                currentAudioUrl = URL.createObjectURL(blob);
+
+                const audio = document.getElementById('tts-audio');
+                audio.src = currentAudioUrl;
+                document.getElementById('audio-player-wrap').style.display = 'block';
+                audio.play();
+
+                document.getElementById('download-btn').disabled = false;
+                showStatus('tts-status', 'Playing! Latency: ' + latency + 'ms', 'success');
+                document.getElementById('feedback-area').style.display = 'flex';
+
+                audio.onended = function() {
+                    document.getElementById('speak-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                };
+            } catch(e) {
+                showStatus('tts-status', 'Error: ' + e.message, 'error');
+                document.getElementById('speak-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = true;
+            }
+        }
+
+        function stopSpeaking() {
+            const audio = document.getElementById('tts-audio');
+            audio.pause();
+            audio.currentTime = 0;
+            document.getElementById('speak-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+        }
+
+        function downloadAudio() {
+            if (!currentAudioUrl) return;
+            const a = document.createElement('a');
+            a.href = currentAudioUrl;
+            a.download = 'voxora-tts-' + Date.now() + '.mp3';
+            a.click();
+        }
+
+        async function submitFeedback(rating) {
+            if (!currentInteractionId) {
+                // If no interaction ID, just show thanks
+                document.getElementById('feedback-area').innerHTML = '<span class="feedback-thanks">Thanks!</span>';
+                return;
+            }
+            try {
+                await fetch(API + '/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interaction_id: currentInteractionId, rating })
+                });
+                document.getElementById('feedback-area').innerHTML = '<span class="feedback-thanks">Thanks!</span>';
+            } catch(e) {}
+        }
+
+        function loadSample(text) {
+            document.getElementById('tts-text').value = text;
+        }
+
+        function showStatus(id, msg, type) {
+            var el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+
+        loadVoices();
+    </script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Your Intelligent Voice Assistant Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="index.html">Voxora AI</a></div>
+        <div class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="tts.html">TTS</a>
+            <a href="stt.html">STT</a>
+            <a href="chat.html">Voice Chat</a>
+            <a href="analytics.html">Analytics</a>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+            </button>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html" class="active">Home</a>
+        <a href="tts.html">TTS</a>
+        <a href="stt.html">STT</a>
+        <a href="chat.html">Voice Chat</a>
+        <a href="analytics.html">Analytics</a>
+        <div class="mobile-nav-footer">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <section class="hero">
+            <div class="hero-badge"><i class="lucide-sparkles"></i> Powered by Edge TTS & Ollama AI</div>
+            <h1>Voxora AI</h1>
+            <p class="tagline">Your Intelligent Voice Assistant Platform</p>
+            <p class="subtitle">Multilingual STT, 400+ Edge TTS voices, AI-powered voice chat — all in one place</p>
+        </section>
+
+        <section class="stats-bar fade-in">
+            <div class="stat-item">
+                <div class="stat-value">400+</div>
+                <div class="stat-desc">Neural Voices</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">90+</div>
+                <div class="stat-desc">Languages</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">&lt;1s</div>
+                <div class="stat-desc">Response Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">100%</div>
+                <div class="stat-desc">Free & Private</div>
+            </div>
+        </section>
+
+        <section class="features-grid">
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-mic"></i></div>
+                <h3>Speech-to-Text</h3>
+                <p>90+ languages with live streaming transcription. Upload audio files or use your mic — auto-detect your language instantly.</p>
+                <a href="stt.html" class="feature-btn">Try STT <i class="lucide-arrow-right"></i></a>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-volume-2"></i></div>
+                <h3>Text-to-Speech</h3>
+                <p>400+ neural voices via Edge TTS. Natural-sounding AI speech in any language with speed & pitch control.</p>
+                <a href="tts.html" class="feature-btn">Try TTS <i class="lucide-arrow-right"></i></a>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-message-circle"></i></div>
+                <h3>Voice Chat</h3>
+                <p>Speak naturally — AI understands and replies in your language with voice output. Same-language smart replies.</p>
+                <a href="chat.html" class="feature-btn">Start Chat <i class="lucide-arrow-right"></i></a>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-bar-chart-3"></i></div>
+                <h3>Analytics</h3>
+                <p>Track usage, latency, language breakdown, and interaction traces in real-time with a beautiful dashboard.</p>
+                <a href="analytics.html" class="feature-btn">View Dashboard <i class="lucide-arrow-right"></i></a>
+            </div>
+        </section>
+
+        <section class="highlights">
+            <h2 class="fade-in">Why Voxora AI?</h2>
+            <div class="highlights-grid">
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-globe"></i> 90+ Languages</strong>
+                    <p>Urdu, Hindi, English, Arabic & more</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-volume-2"></i> 400+ Voices</strong>
+                    <p>Neural Edge TTS voices</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-zap"></i> AI-Powered</strong>
+                    <p>Same-language smart replies</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-shield"></i> Anonymous</strong>
+                    <p>No login, no PII collected</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-activity"></i> Live Streaming</strong>
+                    <p>Words appear as you speak</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-download"></i> Download MP3</strong>
+                    <p>Export AI voice as MP3 file</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="how-it-works">
+            <h2 class="fade-in">How It Works</h2>
+            <div class="steps">
+                <div class="step fade-in">
+                    <div class="step-num">1</div>
+                    <h4>Speak or Type</h4>
+                    <p>Use your microphone or keyboard in 90+ languages</p>
+                </div>
+                <div class="step fade-in">
+                    <div class="step-num">2</div>
+                    <h4>AI Responds</h4>
+                    <p>Get intelligent replies in the same language you spoke</p>
+                </div>
+                <div class="step fade-in">
+                    <div class="step-num">3</div>
+                    <h4>Hear the Reply</h4>
+                    <p>Listen to natural voice output with 400+ neural voices</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta-section">
+            <div class="cta-box fade-in">
+                <h2>Ready to Get Started?</h2>
+                <p>Try Voxora AI now — no signup, no login, completely free and private.</p>
+                <a href="tts.html" class="cta-btn"><i class="lucide-play"></i> Try Text-to-Speech</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        // Theme Toggle
+        function getTheme() {
+            return localStorage.getItem('voxora-theme') || 'dark';
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('voxora-theme', theme);
+        }
+
+        function toggleTheme() {
+            const current = getTheme();
+            const next = current === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+        }
+
+        // Apply saved theme on load
+        applyTheme(getTheme());
+
+        // Mobile Nav
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        // Intersection Observer for fade-in animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.fade-in, .slide-up').forEach(el => observer.observe(el));
+
+        window.addEventListener('load', () => {
+            document.querySelectorAll('.fade-in, .slide-up').forEach(el => {
+                if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add('visible');
+            });
+        });
+    </script>
+</body>
+</html>

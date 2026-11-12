@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Your Intelligent Voice Assistant Platform</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Voxora AI</div>
+        <div class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="tts.html">Text-to-Speech</a>
+            <a href="stt.html">Speech-to-Text</a>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">☰</button>
+    </nav>
+
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html" class="active">Home</a>
+        <a href="tts.html">Text-to-Speech</a>
+        <a href="stt.html">Speech-to-Text</a>
+    </div>
+
+    <main>
+        <section class="hero">
+            <h1>Voxora AI</h1>
+            <p class="tagline">Your Intelligent Voice Assistant Platform</p>
+            <p class="subtitle">Text-to-Speech & Speech-to-Text — All in One Place</p>
+        </section>
+
+        <section class="features-grid">
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-volume-2"></i></div>
+                <h3>Text-to-Speech</h3>
+                <p>Convert any text into natural-sounding audio with multiple voice options and adjustable speed.</p>
+                <a href="tts.html" class="feature-btn">Try TTS <i class="lucide-arrow-right"></i></a>
+            </div>
+            <div class="feature-card fade-in">
+                <div class="feature-icon"><i class="lucide-mic"></i></div>
+                <h3>Speech-to-Text</h3>
+                <p>Convert your voice recordings or uploaded audio files into accurate written text instantly.</p>
+                <a href="stt.html" class="feature-btn">Try STT <i class="lucide-arrow-right"></i></a>
+            </div>
+        </section>
+
+        <section class="highlights">
+            <h2 class="fade-in">Why Voxora AI?</h2>
+            <div class="highlights-grid">
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-globe"></i> 10+ Languages</strong>
+                    <p>Hindi, Urdu, English & more</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-users"></i> Male & Female Voices</strong>
+                    <p>Neural voice options</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-zap"></i> Free & Fast</strong>
+                    <p>No API keys required</p>
+                </div>
+                <div class="highlight-item fade-in">
+                    <strong><i class="lucide-target"></i> Simple Interface</strong>
+                    <p>Clean and easy to use</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="how-it-works">
+            <h2 class="fade-in">How It Works</h2>
+            <div class="steps">
+                <div class="step fade-in">
+                    <div class="step-num">1</div>
+                    <h4>Choose a Tool</h4>
+                    <p>Select Text-to-Speech or Speech-to-Text</p>
+                </div>
+                <div class="step fade-in">
+                    <div class="step-num">2</div>
+                    <h4>Input Your Content</h4>
+                    <p>Type text or record/upload audio</p>
+                </div>
+                <div class="step fade-in">
+                    <div class="step-num">3</div>
+                    <h4>Get Results</h4>
+                    <p>Listen to audio or read the transcribed text</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        // Intersection Observer for scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all elements with animation classes
+        document.querySelectorAll('.fade-in, .slide-up').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Trigger initial animations for visible elements
+        window.addEventListener('load', () => {
+            document.querySelectorAll('.fade-in, .slide-up').forEach(el => {
+                const rect = el.getBoundingClientRect();
+                if (rect.top < window.innerHeight) {
+                    el.classList.add('visible');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

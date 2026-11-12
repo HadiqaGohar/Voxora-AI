@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Voice Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="index.html">Voxora AI</a></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html">TTS</a>
+            <a href="stt.html">STT</a>
+            <a href="chat.html" class="active">Voice Chat</a>
+            <a href="analytics.html">Analytics</a>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+            </button>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html">TTS</a>
+        <a href="stt.html">STT</a>
+        <a href="chat.html" class="active">Voice Chat</a>
+        <a href="analytics.html">Analytics</a>
+        <div class="mobile-nav-footer">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-message-circle"></i> Voice Chat</h1>
+            <p>Speak naturally — AI responds in your language with voice</p>
+        </section>
+
+        <section class="tool-section">
+            <div class="tool-card">
+                <div class="chat-controls">
+                    <div class="control-group">
+                        <label for="chat-lang">Language</label>
+                        <select id="chat-lang">
+                            <option value="auto">Auto-Detect</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Auto-play replies</label>
+                        <label class="toggle"><input type="checkbox" id="auto-play" checked> Voice response</label>
+                    </div>
+                </div>
+
+                <div class="chat-area" id="chat-area">
+                    <div class="chat-empty">
+                        <i class="lucide-mic"></i>
+                        <p>Tap the mic and start speaking</p>
+                        <p class="chat-hint">AI will respond in the same language you speak</p>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <button id="chat-record-btn" class="btn-record" onclick="toggleChatRecording()">
+                        <span class="record-icon" id="chat-record-icon"><i class="lucide-mic"></i></span>
+                    </button>
+                    <div id="chat-status" class="status"></div>
+                </div>
+
+                <div class="chat-text-input">
+                    <input type="text" id="chat-text" placeholder="Or type your message..." onkeydown="if(event.key==='Enter')sendTextChat()">
+                    <button class="btn btn-primary" onclick="sendTextChat()"><i class="lucide-send"></i></button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        const API = '/api';
+        let chatRecognition = null;
+        let isChatRecording = false;
+        let sessionId = 'chat_' + Date.now();
+        let chatHistory = [];
+        let isProcessing = false;
+        let currentAudio = null;
+
+        function getTheme() { return localStorage.getItem('voxora-theme') || 'dark'; }
+        function applyTheme(theme) { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('voxora-theme', theme); }
+        function toggleTheme() { applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+        applyTheme(getTheme());
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        const LANGUAGES = [
+            { code: 'auto', name: 'Auto-Detect' },
+            { code: 'en-US', name: 'English' }, { code: 'hi-IN', name: 'Hindi' },
+            { code: 'ur-PK', name: 'Urdu' }, { code: 'ar-SA', name: 'Arabic' },
+            { code: 'es-ES', name: 'Spanish' }, { code: 'fr-FR', name: 'French' },
+            { code: 'de-DE', name: 'German' }, { code: 'pt-BR', name: 'Portuguese' },
+            { code: 'ja-JP', name: 'Japanese' }, { code: 'ko-KR', name: 'Korean' },
+            { code: 'zh-CN', name: 'Chinese' }, { code: 'ru-RU', name: 'Russian' },
+            { code: 'tr-TR', name: 'Turkish' }, { code: 'vi-VN', name: 'Vietnamese' },
+            { code: 'th-TH', name: 'Thai' }, { code: 'id-ID', name: 'Indonesian' },
+            { code: 'bn-BD', name: 'Bengali' }, { code: 'ta-IN', name: 'Tamil' },
+            { code: 'te-IN', name: 'Telugu' }, { code: 'pl-PL', name: 'Polish' },
+            { code: 'nl-NL', name: 'Dutch' }, { code: 'it-IT', name: 'Italian' },
+            { code: 'sv-SE', name: 'Swedish' }, { code: 'no-NO', name: 'Norwegian' },
+        ];
+
+        function loadLanguages() {
+            const sel = document.getElementById('chat-lang');
+            LANGUAGES.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.code;
+                opt.textContent = l.name;
+                sel.appendChild(opt);
+            });
+        }
+        loadLanguages();
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            chatRecognition = new SpeechRecognition();
+            chatRecognition.continuous = false;
+            chatRecognition.interimResults = false;
+
+            chatRecognition.onresult = function(event) {
+                const text = event.results[0][0].transcript;
+                sendVoiceMessage(text);
+            };
+
+            chatRecognition.onerror = function(event) {
+                if (event.error === 'not-allowed') {
+                    showChatStatus('Microphone access denied.', 'error');
+                }
+                isChatRecording = false;
+                updateChatRecordUI();
+            };
+
+            chatRecognition.onend = function() {
+                isChatRecording = false;
+                updateChatRecordUI();
+            };
+        }
+
+        function toggleChatRecording() {
+            if (!SpeechRecognition) {
+                showChatStatus('Speech Recognition not supported. Use Chrome/Edge.', 'error');
+                return;
+            }
+            if (isProcessing) return;
+
+            if (isChatRecording) {
+                chatRecognition.stop();
+                isChatRecording = false;
+                updateChatRecordUI();
+            } else {
+                const lang = document.getElementById('chat-lang').value;
+                chatRecognition.lang = lang === 'auto' ? '' : lang;
+                try {
+                    chatRecognition.start();
+                    isChatRecording = true;
+                    updateChatRecordUI();
+                    showChatStatus('Listening...', 'info');
+                } catch(e) {}
+            }
+        }
+
+        function updateChatRecordUI() {
+            const icon = document.getElementById('chat-record-icon');
+            const btn = document.getElementById('chat-record-btn');
+            if (isChatRecording) {
+                icon.innerHTML = '<i class="lucide-square"></i>';
+                btn.classList.add('recording');
+            } else {
+                icon.innerHTML = '<i class="lucide-mic"></i>';
+                btn.classList.remove('recording');
+            }
+        }
+
+        function addChatMessage(role, text, extra) {
+            const area = document.getElementById('chat-area');
+            const empty = area.querySelector('.chat-empty');
+            if (empty) empty.remove();
+
+            const msg = document.createElement('div');
+            msg.className = 'chat-msg chat-' + role;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'chat-avatar';
+            avatar.innerHTML = role === 'user' ? '<i class="lucide-user"></i>' : '<i class="lucide-bot"></i>';
+
+            const content = document.createElement('div');
+            content.className = 'chat-content';
+            content.textContent = text;
+
+            if (extra) {
+                const meta = document.createElement('div');
+                meta.className = 'chat-meta';
+                meta.textContent = extra;
+                content.appendChild(meta);
+            }
+
+            msg.appendChild(avatar);
+            msg.appendChild(content);
+            area.appendChild(msg);
+            area.scrollTop = area.scrollHeight;
+
+            return content;
+        }
+
+        function addTypingIndicator() {
+            const area = document.getElementById('chat-area');
+            const typing = document.createElement('div');
+            typing.className = 'chat-msg chat-assistant';
+            typing.id = 'typing-indicator';
+            typing.innerHTML = '<div class="chat-avatar"><i class="lucide-bot"></i></div><div class="chat-content"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+            area.appendChild(typing);
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typing-indicator');
+            if (el) el.remove();
+        }
+
+        async function sendVoiceMessage(text) {
+            if (!text.trim() || isProcessing) return;
+            isProcessing = true;
+            showChatStatus('Thinking...', 'info');
+
+            addChatMessage('user', text);
+            addTypingIndicator();
+
+            const lang = document.getElementById('chat-lang').value;
+
+            try {
+                const resp = await fetch(API + '/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        history: chatHistory.slice(-10),
+                        language: lang === 'auto' ? null : lang.split('-')[0],
+                        session_id: sessionId,
+                    })
+                });
+
+                const data = await resp.json();
+                removeTypingIndicator();
+
+                chatHistory.push({ role: 'user', content: text });
+                chatHistory.push({ role: 'assistant', content: data.reply });
+
+                const latency = data.latency_ms + 'ms';
+                addChatMessage('assistant', data.reply, latency);
+
+                document.getElementById('chat-status').className = 'status success';
+                document.getElementById('chat-status').textContent = 'Reply in ' + data.language + ' | ' + latency;
+
+                if (document.getElementById('auto-play').checked) {
+                    playTTSReply(data.reply, data.voice);
+                }
+            } catch(e) {
+                removeTypingIndicator();
+                showChatStatus('Error: ' + e.message, 'error');
+            }
+            isProcessing = false;
+        }
+
+        function sendTextChat() {
+            const input = document.getElementById('chat-text');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            sendVoiceMessage(text);
+        }
+
+        async function playTTSReply(text, voice) {
+            try {
+                const resp = await fetch(API + '/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice, session_id: sessionId })
+                });
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                if (currentAudio) { currentAudio.pause(); }
+                currentAudio = new Audio(url);
+                currentAudio.play();
+            } catch(e) {}
+        }
+
+        function showChatStatus(msg, type) {
+            const el = document.getElementById('chat-status');
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+    </script>
+</body>
+</html>

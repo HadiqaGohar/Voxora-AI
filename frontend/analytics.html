@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Analytics</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="index.html">Voxora AI</a></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html">TTS</a>
+            <a href="stt.html">STT</a>
+            <a href="chat.html">Voice Chat</a>
+            <a href="analytics.html" class="active">Analytics</a>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+            </button>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html">TTS</a>
+        <a href="stt.html">STT</a>
+        <a href="chat.html">Voice Chat</a>
+        <a href="analytics.html" class="active">Analytics</a>
+        <div class="mobile-nav-footer">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-bar-chart-3"></i> Analytics Dashboard</h1>
+            <p>Usage statistics, latency metrics, and interaction traces</p>
+        </section>
+
+        <section class="analytics-section">
+            <div class="stats-grid">
+                <div class="stat-card" id="stat-total">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Total Interactions</div>
+                </div>
+                <div class="stat-card" id="stat-feedback">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Avg Feedback</div>
+                </div>
+                <div class="stat-card" id="stat-latency">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Avg Latency</div>
+                </div>
+                <div class="stat-card" id="stat-languages">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Languages Used</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3><i class="lucide-pie-chart"></i> By Type</h3>
+                    <div id="chart-type" class="chart-area"></div>
+                </div>
+                <div class="chart-card">
+                    <h3><i class="lucide-globe"></i> Top Languages</h3>
+                    <div id="chart-lang" class="chart-area"></div>
+                </div>
+                <div class="chart-card">
+                    <h3><i class="lucide-trending-up"></i> Daily Usage</h3>
+                    <div id="chart-daily" class="chart-area"></div>
+                </div>
+                <div class="chart-card">
+                    <h3><i class="lucide-thumbs-up"></i> Feedback</h3>
+                    <div id="chart-feedback" class="chart-area"></div>
+                </div>
+            </div>
+
+            <div class="chart-card full-width">
+                <h3><i class="lucide-clock"></i> Recent Interactions</h3>
+                <div style="margin-bottom: 1rem;">
+                    <button class="btn btn-danger" onclick="clearAllData()" style="font-size: 0.85rem; padding: 0.5rem 1rem;">Clear All Data</button>
+                </div>
+                <div id="recent-table" class="table-wrap"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        const API = '/api';
+
+        function getTheme() { return localStorage.getItem('voxora-theme') || 'dark'; }
+        function applyTheme(theme) { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('voxora-theme', theme); }
+        function toggleTheme() { applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+        applyTheme(getTheme());
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        async function loadAnalytics() {
+            try {
+                const resp = await fetch(API + '/analytics');
+                const data = await resp.json();
+
+                // Stats
+                document.querySelector('#stat-total .stat-number').textContent = data.total_interactions;
+                document.querySelector('#stat-feedback .stat-number').textContent = data.avg_feedback ? data.avg_feedback.toFixed(1) + '/1' : 'N/A';
+                const avgLatency = data.by_type.reduce((sum, t) => sum + (t.avg_latency || 0), 0) / (data.by_type.length || 1);
+                document.querySelector('#stat-latency').querySelector('.stat-number').textContent = Math.round(avgLatency) + 'ms';
+                document.querySelector('#stat-languages .stat-number').textContent = data.by_language.length;
+
+                // Type chart
+                renderBarChart('chart-type', data.by_type.map(t => ({ label: t.type, value: t.count })), ['stt', 'tts', 'chat', 'voice_chat']);
+
+                // Language chart
+                renderBarChart('chart-lang', data.by_language.slice(0, 10).map(l => ({ label: l.language, value: l.count })));
+
+                // Daily chart
+                renderDailyChart('chart-daily', data.by_day.reverse());
+
+                // Feedback chart
+                renderFeedbackChart('chart-feedback', data.feedback_stats);
+
+                // Recent table
+                renderTable('recent-table', data.recent_interactions);
+
+            } catch(e) {
+                console.error('Analytics load error:', e);
+            }
+        }
+
+        function renderBarChart(id, items, colors) {
+            const container = document.getElementById(id);
+            if (!items.length) { container.innerHTML = '<p class="empty">No data yet</p>'; return; }
+
+            const max = Math.max(...items.map(i => i.value));
+            const palette = ['#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#06b6d4', '#84cc16'];
+
+            container.innerHTML = items.map((item, i) => {
+                const pct = max > 0 ? (item.value / max) * 100 : 0;
+                const color = palette[i % palette.length];
+                return `<div class="bar-row">
+                    <span class="bar-label">${item.label}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span class="bar-value">${item.value}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderDailyChart(id, items) {
+            const container = document.getElementById(id);
+            if (!items.length) { container.innerHTML = '<p class="empty">No data yet</p>'; return; }
+
+            const max = Math.max(...items.map(i => i.count));
+            container.innerHTML = `<div class="daily-chart">${items.map(item => {
+                const h = max > 0 ? (item.count / max) * 100 : 0;
+                return `<div class="daily-bar-wrap" title="${item.day}: ${item.count}">
+                    <div class="daily-bar" style="height:${h}%"></div>
+                    <span class="daily-label">${item.day.slice(5)}</span>
+                </div>`;
+            }).join('')}</div>`;
+        }
+
+        function renderFeedbackChart(id, items) {
+            const container = document.getElementById(id);
+            if (!items.length) { container.innerHTML = '<p class="empty">No feedback yet</p>'; return; }
+
+            container.innerHTML = items.map(item => {
+                const label = item.rating === 1 ? '👍 Up' : '👎 Down';
+                const color = item.rating === 1 ? '#10b981' : '#ef4444';
+                return `<div class="bar-row">
+                    <span class="bar-label">${label}</span>
+                    <div class="bar-track"><div class="bar-fill" style="width:${item.count}px;background:${color}"></div></div>
+                    <span class="bar-value">${item.count}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderTable(id, items) {
+            const container = document.getElementById(id);
+            if (!items.length) { container.innerHTML = '<p class="empty">No interactions yet</p>'; return; }
+
+            container.innerHTML = `<table class="data-table">
+                <thead><tr><th>Type</th><th>Input</th><th>Language</th><th>Latency</th><th>Rating</th><th>Time</th><th></th></tr></thead>
+                <tbody>${items.map(r => `<tr>
+                    <td><span class="type-badge ${r.type}">${r.type}</span></td>
+                    <td class="text-truncate">${(r.input_text || '-').slice(0, 40)}</td>
+                    <td>${r.language || '-'}</td>
+                    <td>${r.latency_ms ? Math.round(r.latency_ms) + 'ms' : '-'}</td>
+                    <td>${r.rating === 1 ? '👍' : r.rating === -1 ? '👎' : '-'}</td>
+                    <td>${r.created_at ? new Date(r.created_at).toLocaleString() : '-'}</td>
+                    <td><button class="btn-delete" onclick="deleteInteraction(${r.id})" title="Delete">&times;</button></td>
+                </tr>`).join('')}</tbody>
+            </table>`;
+        }
+
+        async function deleteInteraction(id) {
+            if (!confirm('Delete this interaction?')) return;
+            try {
+                await fetch(API + '/analytics/' + id, { method: 'DELETE' });
+                loadAnalytics();
+            } catch(e) {}
+        }
+
+        async function clearAllData() {
+            if (!confirm('Delete ALL analytics data? This cannot be undone.')) return;
+            try {
+                await fetch(API + '/analytics/clear', { method: 'DELETE' });
+                loadAnalytics();
+            } catch(e) {}
+        }
+
+        loadAnalytics();
+        setInterval(loadAnalytics, 30000);
+    </script>
+</body>
+</html>

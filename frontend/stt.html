@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxora AI - Speech-to-Text</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><a href="index.html">Voxora AI</a></div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="tts.html">TTS</a>
+            <a href="stt.html" class="active">STT</a>
+            <a href="chat.html">Voice Chat</a>
+            <a href="analytics.html">Analytics</a>
+        </div>
+        <div class="nav-actions">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+            </button>
+        </div>
+        <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+    </nav>
+    <div class="mobile-nav" id="mobileNav">
+        <a href="index.html">Home</a>
+        <a href="tts.html">TTS</a>
+        <a href="stt.html" class="active">STT</a>
+        <a href="chat.html">Voice Chat</a>
+        <a href="analytics.html">Analytics</a>
+        <div class="mobile-nav-footer">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <i class="lucide-moon icon-moon"></i>
+                <i class="lucide-sun icon-sun"></i>
+                <span>Toggle Theme</span>
+            </button>
+        </div>
+    </div>
+
+    <main>
+        <section class="page-header">
+            <h1><i class="lucide-mic"></i> Speech-to-Text</h1>
+            <p>90+ languages with live streaming transcription</p>
+        </section>
+
+        <section class="tool-section">
+            <div class="tool-card">
+                <div class="record-area">
+                    <button id="record-btn" class="btn-record" onclick="toggleRecording()">
+                        <span class="record-icon" id="record-icon"><i class="lucide-mic"></i></span>
+                        <span id="record-label">Start Recording</span>
+                    </button>
+                    <div id="recording-status" class="recording-status"></div>
+                </div>
+
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="stt-lang">Language</label>
+                        <select id="stt-lang">
+                            <option value="auto">Auto-Detect</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Features</label>
+                        <div class="toggle-group">
+                            <label class="toggle"><input type="checkbox" id="auto-respond" checked> Auto-respond via TTS</label>
+                            <label class="toggle"><input type="checkbox" id="streaming-enabled" checked> Streaming transcription</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="streaming-output" id="streaming-output">
+                    <div class="streaming-label">Live Transcription</div>
+                    <div id="streaming-text" class="streaming-text"></div>
+                </div>
+
+                <div class="output-area">
+                    <label for="stt-output">Final Transcription</label>
+                    <textarea id="stt-output" rows="6" placeholder="Transcribed text will appear here..."></textarea>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="copyText()"><i class="lucide-copy"></i> Copy</button>
+                    <button class="btn btn-secondary" onclick="clearText()"><i class="lucide-trash-2"></i> Clear</button>
+                    <button class="btn btn-secondary" onclick="downloadText()"><i class="lucide-download"></i> Download</button>
+                    <button class="btn btn-primary" id="download-audio-btn" onclick="downloadRecording()" disabled><i class="lucide-download"></i> Audio</button>
+                </div>
+
+                <div id="stt-status" class="status"></div>
+                <div id="feedback-area" class="feedback-area" style="display:none;">
+                    <span>Was this helpful?</span>
+                    <button class="feedback-btn" onclick="submitFeedback(1)"><i class="lucide-thumbs-up"></i></button>
+                    <button class="feedback-btn" onclick="submitFeedback(-1)"><i class="lucide-thumbs-down"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tool-section">
+            <h2>Upload Audio</h2>
+            <div class="tool-card">
+                <div class="upload-area" id="upload-area">
+                    <p>Drag & drop audio or</p>
+                    <label for="audio-upload" class="btn btn-primary"><i class="lucide-upload"></i> Browse</label>
+                    <input type="file" id="audio-upload" accept="audio/*" hidden onchange="handleFileUpload(event)">
+                    <p class="upload-hint">MP3, WAV, OGG, WEBM</p>
+                </div>
+                <div id="upload-preview" style="display:none;">
+                    <audio id="audio-player" controls></audio>
+                    <div class="btn-group" style="margin-top: 1rem;">
+                        <button class="btn btn-primary" id="transcribe-btn" onclick="transcribeUploaded()"><i class="lucide-scan-text"></i> Transcribe to Text</button>
+                        <button class="btn btn-secondary" onclick="resetUpload()"><i class="lucide-x"></i> Remove</button>
+                    </div>
+                </div>
+                <div id="upload-status" class="status"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Voxora AI — Your Intelligent Voice Assistant Platform</p>
+    </footer>
+
+    <script>
+        const API = '/api';
+        let recognition = null;
+        let isRecording = false;
+        let finalTranscript = '';
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        function getTheme() { return localStorage.getItem('voxora-theme') || 'dark'; }
+        function applyTheme(theme) { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('voxora-theme', theme); }
+        function toggleTheme() { applyTheme(getTheme() === 'dark' ? 'light' : 'dark'); }
+        applyTheme(getTheme());
+        let recordedBlob = null;
+        let micStream = null;
+        let currentInteractionId = null;
+        let sessionId = 'sess_' + Date.now();
+
+        function toggleNav() {
+            document.getElementById('mobileNav').classList.toggle('show');
+        }
+
+        // Load languages from Web Speech API
+        const LANGUAGES = [
+            { code: 'af-ZA', name: 'Afrikaans' }, { code: 'sq-AL', name: 'Albanian' },
+            { code: 'am-ET', name: 'Amharic' }, { code: 'ar-SA', name: 'Arabic' },
+            { code: 'hy-AM', name: 'Armenian' }, { code: 'az-AZ', name: 'Azerbaijani' },
+            { code: 'eu-ES', name: 'Basque' }, { code: 'bn-BD', name: 'Bengali' },
+            { code: 'bs-BA', name: 'Bosnian' }, { code: 'bg-BG', name: 'Bulgarian' },
+            { code: 'my-MM', name: 'Burmese' }, { code: 'ca-ES', name: 'Catalan' },
+            { code: 'zh-CN', name: 'Chinese (Mandarin)' }, { code: 'zh-TW', name: 'Chinese (Taiwanese)' },
+            { code: 'zh-HK', name: 'Chinese (Cantonese)' }, { code: 'hr-HR', name: 'Croatian' },
+            { code: 'cs-CZ', name: 'Czech' }, { code: 'da-DK', name: 'Danish' },
+            { code: 'nl-NL', name: 'Dutch' }, { code: 'en-US', name: 'English (US)' },
+            { code: 'en-GB', name: 'English (UK)' }, { code: 'en-AU', name: 'English (Australia)' },
+            { code: 'en-IN', name: 'English (India)' }, { code: 'et-EE', name: 'Estonian' },
+            { code: 'fil-PH', name: 'Filipino' }, { code: 'fi-FI', name: 'Finnish' },
+            { code: 'fr-FR', name: 'French' }, { code: 'fr-CA', name: 'French (Canada)' },
+            { code: 'gl-ES', name: 'Galician' }, { code: 'ka-GE', name: 'Georgian' },
+            { code: 'de-DE', name: 'German' }, { code: 'el-GR', name: 'Greek' },
+            { code: 'gu-IN', name: 'Gujarati' }, { code: 'ha-NG', name: 'Hausa' },
+            { code: 'he-IL', name: 'Hebrew' }, { code: 'hi-IN', name: 'Hindi' },
+            { code: 'hu-HU', name: 'Hungarian' }, { code: 'is-IS', name: 'Icelandic' },
+            { code: 'id-ID', name: 'Indonesian' }, { code: 'ga-IE', name: 'Irish' },
+            { code: 'it-IT', name: 'Italian' }, { code: 'ja-JP', name: 'Japanese' },
+            { code: 'jv-ID', name: 'Javanese' }, { code: 'kn-IN', name: 'Kannada' },
+            { code: 'kk-KZ', name: 'Kazakh' }, { code: 'km-KH', name: 'Khmer' },
+            { code: 'ko-KR', name: 'Korean' }, { code: 'ku-TR', name: 'Kurdish' },
+            { code: 'ky-KG', name: 'Kyrgyz' }, { code: 'lo-LA', name: 'Lao' },
+            { code: 'lv-LV', name: 'Latvian' }, { code: 'lt-LT', name: 'Lithuanian' },
+            { code: 'mk-MK', name: 'Macedonian' }, { code: 'ms-MY', name: 'Malay' },
+            { code: 'ml-IN', name: 'Malayalam' }, { code: 'mt-MT', name: 'Maltese' },
+            { code: 'mi-NZ', name: 'Maori' }, { code: 'mr-IN', name: 'Marathi' },
+            { code: 'mn-MN', name: 'Mongolian' }, { code: 'ne-NP', name: 'Nepali' },
+            { code: 'no-NO', name: 'Norwegian' }, { code: 'ps-AF', name: 'Pashto' },
+            { code: 'fa-IR', name: 'Persian' }, { code: 'pl-PL', name: 'Polish' },
+            { code: 'pt-BR', name: 'Portuguese (Brazil)' }, { code: 'pt-PT', name: 'Portuguese (Portugal)' },
+            { code: 'ro-RO', name: 'Romanian' }, { code: 'ru-RU', name: 'Russian' },
+            { code: 'sr-RS', name: 'Serbian' }, { code: 'sn-ZW', name: 'Shona' },
+            { code: 'sd-PK', name: 'Sindhi' }, { code: 'si-LK', name: 'Sinhala' },
+            { code: 'sk-SK', name: 'Slovak' }, { code: 'sl-SI', name: 'Slovenian' },
+            { code: 'so-SO', name: 'Somali' }, { code: 'es-ES', name: 'Spanish' },
+            { code: 'es-MX', name: 'Spanish (Mexico)' }, { code: 'su-ID', name: 'Sundanese' },
+            { code: 'sw-KE', name: 'Swahili' }, { code: 'sv-SE', name: 'Swedish' },
+            { code: 'tg-TJ', name: 'Tajik' }, { code: 'ta-IN', name: 'Tamil' },
+            { code: 'tt-RU', name: 'Tatar' }, { code: 'te-IN', name: 'Telugu' },
+            { code: 'th-TH', name: 'Thai' }, { code: 'tr-TR', name: 'Turkish' },
+            { code: 'tk-TM', name: 'Turkmen' }, { code: 'uk-UA', name: 'Ukrainian' },
+            { code: 'ur-PK', name: 'Urdu' }, { code: 'ug-CN', name: 'Uyghur' },
+            { code: 'uz-UZ', name: 'Uzbek' }, { code: 'vi-VN', name: 'Vietnamese' },
+            { code: 'cy-GB', name: 'Welsh' }, { code: 'xh-ZA', name: 'Xhosa' },
+            { code: 'yi-DE', name: 'Yiddish' }, { code: 'yo-NG', name: 'Yoruba' },
+            { code: 'zu-ZA', name: 'Zulu' },
+        ];
+
+        function loadLanguages() {
+            const sel = document.getElementById('stt-lang');
+            LANGUAGES.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.code;
+                opt.textContent = l.name;
+                sel.appendChild(opt);
+            });
+        }
+        loadLanguages();
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = function(event) {
+                const streamingEl = document.getElementById('streaming-text');
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+                streamingEl.textContent = finalTranscript + interim;
+                document.getElementById('stt-output').value = finalTranscript;
+            };
+
+            recognition.onerror = function(event) {
+                if (event.error !== 'no-speech') {
+                    showStatus('stt-status', 'Error: ' + event.error, 'error');
+                }
+                if (event.error === 'not-allowed') {
+                    stopRecordingUI();
+                    isRecording = false;
+                }
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    try { recognition.start(); } catch(e) {}
+                }
+            };
+        }
+
+        function toggleRecording() {
+            if (!SpeechRecognition) {
+                showStatus('stt-status', 'Speech Recognition not supported. Use Chrome or Edge.', 'error');
+                return;
+            }
+            if (isRecording) stopRecording();
+            else startRecording();
+        }
+
+        function startRecording() {
+            const lang = document.getElementById('stt-lang').value;
+            recognition.lang = lang === 'auto' ? 'en-US' : lang;
+            finalTranscript = document.getElementById('stt-output').value;
+
+            try {
+                recognition.start();
+                isRecording = true;
+                startRecordingUI();
+                showStatus('stt-status', 'Listening... Speak now!', 'info');
+                startAudioRecording();
+            } catch(e) {
+                showStatus('stt-status', 'Failed: ' + e.message, 'error');
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            try { recognition.stop(); } catch(e) {}
+            stopRecordingUI();
+            stopAudioRecording();
+
+            const text = document.getElementById('stt-output').value.trim();
+            if (text) {
+                logSTT(text);
+                document.getElementById('feedback-area').style.display = 'flex';
+            }
+            showStatus('stt-status', 'Recording stopped.', 'success');
+        }
+
+        function startRecordingUI() {
+            document.getElementById('record-icon').innerHTML = '<i class="lucide-square"></i>';
+            document.getElementById('record-label').textContent = 'Stop';
+            document.getElementById('record-btn').classList.add('recording');
+            document.getElementById('recording-status').textContent = '\u25CF REC';
+            document.getElementById('recording-status').classList.add('blink');
+        }
+
+        function stopRecordingUI() {
+            document.getElementById('record-icon').innerHTML = '<i class="lucide-mic"></i>';
+            document.getElementById('record-label').textContent = 'Start Recording';
+            document.getElementById('record-btn').classList.remove('recording');
+            document.getElementById('recording-status').textContent = '';
+            document.getElementById('recording-status').classList.remove('blink');
+        }
+
+        function startAudioRecording() {
+            audioChunks = [];
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+                    micStream = stream;
+                    try {
+                        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+                    } catch(e) {
+                        mediaRecorder = new MediaRecorder(stream);
+                    }
+                    mediaRecorder.ondataavailable = function(e) {
+                        if (e.data.size > 0) audioChunks.push(e.data);
+                    };
+                    mediaRecorder.onstop = function() {
+                        recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        document.getElementById('download-audio-btn').disabled = false;
+                    };
+                    mediaRecorder.start(100);
+                }).catch(function(err) {
+                    showStatus('stt-status', 'Mic not available. STT still works!', 'info');
+                });
+            }
+        }
+
+        function stopAudioRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+            if (micStream) {
+                micStream.getTracks().forEach(function(t) { t.stop(); });
+                micStream = null;
+            }
+        }
+
+        async function logSTT(text) {
+            const lang = document.getElementById('stt-lang').value;
+            try {
+                const resp = await fetch(API + '/stt/log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, language: lang === 'auto' ? 'auto' : lang.split('-')[0], session_id: sessionId })
+                });
+                const data = await resp.json();
+                currentInteractionId = data.interaction_id;
+            } catch(e) {}
+        }
+
+        async function submitFeedback(rating) {
+            if (!currentInteractionId) return;
+            try {
+                await fetch(API + '/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interaction_id: currentInteractionId, rating: rating })
+                });
+                document.getElementById('feedback-area').innerHTML = '<span class="feedback-thanks">Thanks for your feedback!</span>';
+            } catch(e) {}
+        }
+
+        function downloadRecording() {
+            if (!recordedBlob) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(recordedBlob);
+            a.download = 'voxora-recording-' + Date.now() + '.webm';
+            a.click();
+        }
+
+        function copyText() {
+            const text = document.getElementById('stt-output').value;
+            if (!text.trim()) return;
+            navigator.clipboard.writeText(text).then(function() {
+                showStatus('stt-status', 'Copied!', 'success');
+            });
+        }
+
+        function clearText() {
+            document.getElementById('stt-output').value = '';
+            document.getElementById('streaming-text').textContent = '';
+            finalTranscript = '';
+            recordedBlob = null;
+            audioChunks = [];
+            currentInteractionId = null;
+            document.getElementById('download-audio-btn').disabled = true;
+            document.getElementById('feedback-area').style.display = 'none';
+        }
+
+        function downloadText() {
+            const text = document.getElementById('stt-output').value;
+            if (!text.trim()) return;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+            a.download = 'voxora-transcription-' + Date.now() + '.txt';
+            a.click();
+        }
+
+        var uploadArea = document.getElementById('upload-area');
+        uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            var file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('audio/')) processAudioFile(file);
+        });
+
+        function handleFileUpload(event) {
+            var file = event.target.files[0];
+            if (file) processAudioFile(file);
+        }
+
+        function processAudioFile(file) {
+            document.getElementById('audio-player').src = URL.createObjectURL(file);
+            document.getElementById('upload-area').style.display = 'none';
+            document.getElementById('upload-preview').style.display = 'block';
+            document.getElementById('upload-preview').dataset.file = file.name;
+            showStatus('upload-status', 'Audio loaded. Click "Transcribe to Text" to convert.', 'info');
+        }
+
+        async function transcribeUploaded() {
+            const player = document.getElementById('audio-player');
+            const src = player.src;
+            if (!src) { showStatus('upload-status', 'No audio loaded.', 'error'); return; }
+
+            const transcribeBtn = document.getElementById('transcribe-btn');
+            transcribeBtn.disabled = true;
+            transcribeBtn.innerHTML = '<i class="lucide-loader-2"></i> Transcribing...';
+            showStatus('upload-status', 'Transcribing audio...', 'info');
+
+            try {
+                // Fetch the audio blob from the object URL
+                const resp = await fetch(src);
+                const blob = await resp.blob();
+
+                // Determine file extension from MIME type
+                const mimeToExt = { 'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/webm': 'webm', 'audio/mp4': 'm4a' };
+                const ext = mimeToExt[blob.type] || 'wav';
+                const filename = 'upload.' + ext;
+
+                // Create form data
+                const formData = new FormData();
+                formData.append('file', blob, filename);
+                formData.append('language', document.getElementById('stt-lang').value);
+                formData.append('session_id', sessionId);
+
+                const start = performance.now();
+                const sttResp = await fetch(API + '/stt', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await sttResp.json();
+
+                if (!sttResp.ok) {
+                    throw new Error(data.detail || 'Transcription failed');
+                }
+
+                // Put transcribed text in the main output
+                document.getElementById('stt-output').value = data.text;
+                finalTranscript = data.text;
+                document.getElementById('streaming-text').textContent = data.text;
+
+                currentInteractionId = data.interaction_id;
+                document.getElementById('feedback-area').style.display = 'flex';
+
+                showStatus('upload-status', 'Transcribed in ' + data.latency_ms + 'ms', 'success');
+                showStatus('stt-status', 'Text from audio file ready!', 'success');
+
+            } catch(e) {
+                showStatus('upload-status', 'Error: ' + e.message, 'error');
+            } finally {
+                transcribeBtn.disabled = false;
+                transcribeBtn.innerHTML = '<i class="lucide-scan-text"></i> Transcribe to Text';
+            }
+        }
+
+        function resetUpload() {
+            document.getElementById('audio-player').src = '';
+            document.getElementById('upload-area').style.display = '';
+            document.getElementById('upload-preview').style.display = 'none';
+            document.getElementById('upload-status').className = 'status';
+            document.getElementById('upload-status').textContent = '';
+            document.getElementById('audio-upload').value = '';
+        }
+
+        function showStatus(id, msg, type) {
+            var el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'status ' + type;
+        }
+    </script>
+</body>
+</html>

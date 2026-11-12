@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    container_name: voxora-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - voxora-data:/data
+    environment:
+      - OLLAMA_URL=http://pilotron-ollama:11434
+      - OLLAMA_MODEL=llama3.2:latest
+      - VOXORA_DB=/data/voxora.db
+    networks:
+      - pilotron-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: voxora-nginx
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx:/etc/nginx/conf.d:ro
+    depends_on:
+      - backend
+    networks:
+      - pilotron-net
+
+volumes:
+  voxora-data:
+
+networks:
+  pilotron-net:
+    external: true
